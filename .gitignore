@@ -1,6 +1,4 @@
-__pycache__/
-*.py[cod]
-.venv/
-.env
-.pytest_cache/
-*.db
+node_modules/
+.next/
+.env.local
+npm-debug.log*
