@@ -1,4 +1,15 @@
-node_modules/
-.next/
-.env.local
-npm-debug.log*
+# Backend secrets / Python
+backend/.env
+backend/.venv/
+**/__pycache__/
+*.pyc
+
+# Frontend secrets / generated files
+frontend/.env.local
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# OS files
+.DS_Store
+Thumbs.db
