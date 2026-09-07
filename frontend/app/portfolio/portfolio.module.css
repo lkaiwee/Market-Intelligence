@@ -1,0 +1,173 @@
+.form {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.7fr) minmax(130px, 0.8fr) minmax(110px, 0.7fr) minmax(145px, 0.8fr) minmax(190px, 1.4fr) auto;
+  gap: 11px;
+  align-items: end;
+}
+
+.form label,
+.editGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.form label > span,
+.editGrid label > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.form input,
+.editGrid input {
+  width: 100%;
+  min-height: 38px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 0 11px;
+  outline: none;
+}
+
+.form input:focus,
+.editGrid input:focus {
+  border-color: rgba(41, 211, 154, 0.55);
+}
+
+.notesField {
+  min-width: 190px;
+}
+
+.rowActions {
+  display: flex;
+  gap: 7px;
+}
+
+.dangerButton {
+  color: var(--red);
+  border-color: rgba(255, 107, 122, 0.25);
+}
+
+.breakoutStatus {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.editGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.levelGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.levelCard {
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--panel-2);
+  padding: 14px;
+  min-width: 0;
+}
+
+.levelRows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.levelRows > div {
+  background: #0d1721;
+  padding: 9px 10px;
+  min-width: 0;
+}
+
+.levelRows span,
+.levelRows strong {
+  display: block;
+}
+
+.levelRows span {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.levelRows strong {
+  margin-top: 4px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.methodGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.methodGrid > div {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 13px;
+  background: var(--panel-2);
+}
+
+.methodGrid strong {
+  font-size: 12px;
+}
+
+.methodGrid p,
+.disclaimer {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.methodGrid p {
+  margin: 7px 0 0;
+}
+
+.disclaimer {
+  margin: 14px 0 0;
+}
+
+@media (max-width: 1300px) {
+  .form {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .levelGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .form,
+  .editGrid,
+  .methodGrid,
+  .levelGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .rowActions {
+    flex-wrap: wrap;
+  }
+}

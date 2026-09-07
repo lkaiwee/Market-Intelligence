@@ -11,6 +11,7 @@ from app.security import sanitize_secret
 from app.services.alerts import generate_all_alerts, generate_earnings_alerts
 from app.services.earnings import refresh_earnings_calendar
 from app.services.market_data import refresh_ticker
+from app.services.portfolio import portfolio_tickers
 from app.services.rotation import rotation_universe
 from app.services.screener_refresh import refresh_blue_chip_screener
 
@@ -104,6 +105,7 @@ async def run_daily_market_job(force: bool = False) -> dict:
             for item in rotation_universe(include_themes=False)
         ]
         symbols.extend(settings.daily_watchlist_symbols)
+        symbols.extend(portfolio_tickers(db))
         symbols = list(dict.fromkeys(symbols))
 
         for ticker in symbols:
@@ -154,9 +156,13 @@ async def run_daily_market_job(force: bool = False) -> dict:
                     detail=safe,
                 )
 
+        alert_tickers = list(dict.fromkeys(
+            settings.daily_watchlist_symbols + portfolio_tickers(db)
+        ))
+
         alerts = generate_all_alerts(
             db=db,
-            tickers=settings.daily_watchlist_symbols,
+            tickers=alert_tickers,
             min_score=settings.daily_alert_min_score,
         )
 
@@ -311,9 +317,13 @@ async def run_alert_generation_job() -> dict:
     run = _start_job(db, "alert_generation")
 
     try:
+        alert_tickers = list(dict.fromkeys(
+            settings.daily_watchlist_symbols + portfolio_tickers(db)
+        ))
+
         alerts = generate_all_alerts(
             db=db,
-            tickers=settings.daily_watchlist_symbols,
+            tickers=alert_tickers,
             min_score=settings.daily_alert_min_score,
         )
 
