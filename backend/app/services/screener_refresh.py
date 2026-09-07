@@ -14,10 +14,8 @@ from app.providers.yahoo_fundamentals import (
     YahooFundamentalsError,
     YahooFundamentalsProvider,
 )
-from app.services.blue_chip_universe import (
-    BLUE_CHIP_UNIVERSE,
-    yahoo_symbol,
-)
+from app.services.blue_chip_universe import yahoo_symbol
+from app.services.universe_registry import screening_universe
 from app.services.yahoo_fundamentals import refresh_yahoo_fundamentals
 
 
@@ -88,7 +86,6 @@ def _upsert_prices(
     db.execute(stmt)
 
     newest = max(record["trade_date"] for record in records)
-
     return len(records), newest
 
 
@@ -128,23 +125,25 @@ async def refresh_blue_chip_screener(
 ) -> dict:
     settings = get_settings()
 
-    tickers = list(BLUE_CHIP_UNIVERSE.keys())
+    registry = screening_universe(db)
+    tickers = list(registry.keys())
     yahoo_symbols = [yahoo_symbol(ticker) for ticker in tickers]
 
-    # Ensure every company exists in the stocks table before price upserts.
-    for ticker, (name, sector, _) in BLUE_CHIP_UNIVERSE.items():
+    for ticker, item in registry.items():
         stock = db.get(Stock, ticker)
 
         if stock is None:
             stock = Stock(
                 ticker=ticker,
-                company_name=name,
-                sector=sector,
+                company_name=item.get("company_name"),
+                sector=item.get("sector"),
+                industry=item.get("industry"),
             )
             db.add(stock)
         else:
-            stock.company_name = stock.company_name or name
-            stock.sector = stock.sector or sector
+            stock.company_name = stock.company_name or item.get("company_name")
+            stock.sector = stock.sector or item.get("sector")
+            stock.industry = stock.industry or item.get("industry")
 
     db.commit()
 
@@ -185,10 +184,7 @@ async def refresh_blue_chip_screener(
 
         needs_refresh = (
             force_fundamentals
-            or _fundamentals_stale(
-                snapshot,
-                fundamentals_max_age_days,
-            )
+            or _fundamentals_stale(snapshot, fundamentals_max_age_days)
         )
 
         if not needs_refresh:
@@ -202,8 +198,6 @@ async def refresh_blue_chip_screener(
                 ticker=ticker,
             )
             fundamental_succeeded += 1
-
-            # Keep requests polite and reduce burst-throttling risk.
             await asyncio.sleep(0.15)
 
         except YahooFundamentalsError as exc:

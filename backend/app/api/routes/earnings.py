@@ -19,8 +19,10 @@ router = APIRouter(prefix="/earnings", tags=["Earnings"])
 
 
 @router.get("/universe", response_model=list[EarningsUniverseItem])
-def get_earnings_universe():
-    return earnings_universe()
+def get_earnings_universe(
+    db: Session = Depends(get_db),
+):
+    return earnings_universe(db)
 
 
 @router.post("/refresh", response_model=EarningsRefreshOut)

@@ -9,6 +9,7 @@ const items = [
   { href: "/rotation", label: "Money Rotation", icon: "↗" },
   { href: "/screener", label: "Screener", icon: "⌕" },
   { href: "/earnings", label: "Earnings", icon: "◷" },
+  { href: "/universe", label: "Stock Universe", icon: "+" },
   { href: "/system", label: "System", icon: "⚙" },
 ];
 
@@ -28,7 +29,9 @@ export function Sidebar() {
       <nav>
         {items.map((item) => {
           const active =
-            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
 
           return (
             <Link

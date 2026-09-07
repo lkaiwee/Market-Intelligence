@@ -12,12 +12,14 @@ from app.api.routes.investment import router as investment_router
 from app.api.routes.rotation import router as rotation_router
 from app.api.routes.screener import router as screener_router
 from app.api.routes.stocks import router as stocks_router
+from app.api.routes.universe import router as universe_router
 from app.core.config import get_settings
 from app.database import Base, engine
 from app.scheduler import start_scheduler, stop_scheduler
 from app.services.security_cleanup import sanitize_persisted_secrets
 
 from app import models  # noqa: F401
+from app import models_universe  # noqa: F401
 
 
 @asynccontextmanager
@@ -36,7 +38,7 @@ settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.7.2",
+    version="0.7.3",
     lifespan=lifespan,
 )
 
@@ -58,6 +60,7 @@ app.include_router(screener_router, prefix="/api")
 app.include_router(investment_router, prefix="/api")
 app.include_router(rotation_router, prefix="/api")
 app.include_router(earnings_router, prefix="/api")
+app.include_router(universe_router, prefix="/api")
 app.include_router(automation_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 
@@ -66,10 +69,11 @@ app.include_router(dashboard_router, prefix="/api")
 def root():
     return {
         "message": "Stock Market Intelligence API is running.",
-        "version": "0.7.2",
+        "version": "0.7.3",
         "daily_market_provider": "Yahoo Finance",
         "screener_provider": "Yahoo Finance",
         "earnings_provider": "Yahoo Finance ticker calendars + earnings-dates fallback",
+        "custom_universe": True,
         "frontend": "http://localhost:3000",
         "docs": "/docs",
     }

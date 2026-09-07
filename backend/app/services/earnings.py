@@ -12,11 +12,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import EarningsEvent
-from app.services.blue_chip_universe import (
-    BLUE_CHIP_UNIVERSE,
-    universe_rows,
-    yahoo_symbol,
-)
+from app.services.blue_chip_universe import yahoo_symbol
+from app.services.universe_registry import earnings_universe_registry
 
 
 RELATED_TICKERS = {
@@ -26,35 +23,26 @@ RELATED_TICKERS = {
     "LRCX": ["AMAT", "MU", "NVDA", "TSM", "SOXX"],
     "AMAT": ["LRCX", "MU", "NVDA", "TSM", "SOXX"],
     "TSM": ["NVDA", "AMD", "AVGO", "AAPL", "QCOM", "SOXX"],
-
     "MSFT": ["GOOGL", "AMZN", "ORCL", "CRM", "NVDA", "QQQ"],
     "GOOGL": ["MSFT", "META", "AMZN", "QQQ"],
     "GOOG": ["MSFT", "META", "AMZN", "QQQ"],
     "AMZN": ["MSFT", "GOOGL", "ORCL", "NVDA", "QQQ"],
     "ORCL": ["MSFT", "AMZN", "GOOGL", "CRM", "NVDA"],
     "META": ["GOOGL", "NVDA", "QQQ"],
-
     "JPM": ["BAC", "WFC", "GS", "MS", "XLF"],
     "BAC": ["JPM", "WFC", "GS", "XLF"],
-
     "WMT": ["COST", "TGT", "XLP"],
     "COST": ["WMT", "TGT", "XLP"],
-
     "XOM": ["CVX", "XLE"],
     "CVX": ["XOM", "XLE"],
 }
 
-
 IMPACT_NOTES = {
     10: "Major market-moving earnings event with broad index and/or industry implications.",
     9: "High-impact industry-leader earnings event with meaningful sector read-through.",
-    8: "Important blue-chip earnings event with notable peer and sector implications.",
-    7: "Blue-chip earnings event with primarily company and sector-specific implications.",
+    8: "Important earnings event with notable peer and sector implications.",
+    7: "Earnings event with primarily company and sector-specific implications.",
 }
-
-
-def earnings_universe() -> list[dict]:
-    return universe_rows()
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -87,7 +75,6 @@ def _to_date(value: Any) -> date | None:
     if value is None:
         return None
 
-    # Yahoo sometimes returns lists/tuples of possible earnings dates.
     if isinstance(value, (list, tuple)):
         dates = [_to_date(item) for item in value]
         dates = [item for item in dates if item is not None]
@@ -100,10 +87,8 @@ def _to_date(value: Any) -> date | None:
 
     if isinstance(value, pd.Timestamp):
         return value.date()
-
     if isinstance(value, datetime):
         return value.date()
-
     if isinstance(value, date):
         return value
 
@@ -129,7 +114,6 @@ def _event_from_calendar(
     end: date,
 ) -> dict | None:
     obj = yf.Ticker(yahoo_symbol(ticker))
-
     calendar = obj.get_calendar()
 
     if not isinstance(calendar, dict) or not calendar:
@@ -145,10 +129,7 @@ def _event_from_calendar(
         )
     )
 
-    if earnings_date is None:
-        return None
-
-    if earnings_date < start or earnings_date > end:
+    if earnings_date is None or earnings_date < start or earnings_date > end:
         return None
 
     eps_estimate = _decimal(
@@ -164,7 +145,6 @@ def _event_from_calendar(
     return {
         "report_date": earnings_date,
         "eps_estimate": eps_estimate,
-        "source": "calendar",
     }
 
 
@@ -174,7 +154,6 @@ def _event_from_earnings_dates(
     end: date,
 ) -> dict | None:
     obj = yf.Ticker(yahoo_symbol(ticker))
-
     frame = obj.get_earnings_dates(limit=8)
 
     if frame is None or frame.empty:
@@ -185,35 +164,22 @@ def _event_from_earnings_dates(
     for index_value, row in frame.iterrows():
         report_date = _to_date(index_value)
 
-        if report_date is None:
+        if report_date is None or report_date < start or report_date > end:
             continue
 
-        if report_date < start or report_date > end:
-            continue
-
-        # Historical rows normally have Reported EPS filled in.
-        # Prefer future/unreported rows.
         reported_eps = None
         for col in ["Reported EPS", "ReportedEPS", "epsActual"]:
             if col in row.index:
                 reported_eps = row[col]
                 break
 
-        is_unreported = True
-
-        if reported_eps is not None:
-            try:
-                is_unreported = pd.isna(reported_eps)
-            except Exception:
-                is_unreported = False
+        try:
+            is_unreported = reported_eps is None or pd.isna(reported_eps)
+        except Exception:
+            is_unreported = False
 
         estimate = None
-
-        for col in [
-            "EPS Estimate",
-            "EPSEstimate",
-            "epsEstimate",
-        ]:
+        for col in ["EPS Estimate", "EPSEstimate", "epsEstimate"]:
             if col in row.index:
                 estimate = _decimal(row[col])
                 if estimate is not None:
@@ -230,10 +196,7 @@ def _event_from_earnings_dates(
     if not candidates:
         return None
 
-    # Prefer an unreported future event. If Yahoo does not expose Reported EPS
-    # consistently, fall back to the earliest future event in the window.
     unreported = [item for item in candidates if item["unreported"]]
-
     selected = min(
         unreported or candidates,
         key=lambda item: item["report_date"],
@@ -242,7 +205,6 @@ def _event_from_earnings_dates(
     return {
         "report_date": selected["report_date"],
         "eps_estimate": selected["eps_estimate"],
-        "source": "earnings_dates",
     }
 
 
@@ -277,7 +239,6 @@ async def _fetch_all_events(
 ) -> list[tuple[str, dict | None, str | None]]:
     loop = asyncio.get_running_loop()
 
-    # Keep the pool modest so Yahoo is not hit with 53 simultaneous requests.
     with ThreadPoolExecutor(max_workers=6) as executor:
         tasks = [
             loop.run_in_executor(
@@ -289,7 +250,6 @@ async def _fetch_all_events(
             )
             for ticker in tickers
         ]
-
         return await asyncio.gather(*tasks)
 
 
@@ -310,37 +270,31 @@ async def refresh_earnings_calendar(
     start = date.today()
     end = start + timedelta(days=horizon_days[horizon])
 
-    tickers = list(BLUE_CHIP_UNIVERSE.keys())
+    registry = earnings_universe_registry(db)
+    tickers = list(registry.keys())
 
-    results = await _fetch_all_events(
-        tickers,
-        start,
-        end,
-    )
-
+    results = await _fetch_all_events(tickers, start, end)
     now = datetime.now(timezone.utc)
 
     parsed_events = []
     matched = []
     failures = []
-    checked = 0
 
     for ticker, event, error in results:
-        checked += 1
-
         if error:
             failures.append(f"{ticker}: {error}")
 
         if event is None:
             continue
 
-        company_name, sector, impact_score = BLUE_CHIP_UNIVERSE[ticker]
+        item = registry[ticker]
+        impact_score = int(item["earnings_impact_score"])
 
         parsed_events.append(
             EarningsEvent(
                 ticker=ticker,
-                company_name=company_name,
-                sector=sector,
+                company_name=item.get("company_name") or ticker,
+                sector=item.get("sector") or "Unknown",
                 report_date=event["report_date"],
                 fiscal_date_ending=None,
                 eps_estimate=event["eps_estimate"],
@@ -349,54 +303,59 @@ async def refresh_earnings_calendar(
                 impact_level=_impact_level(impact_score),
                 impact_note=IMPACT_NOTES.get(
                     impact_score,
-                    "Blue-chip earnings event.",
+                    "Upcoming earnings event.",
                 ),
-                related_tickers=",".join(
-                    RELATED_TICKERS.get(ticker, [])
-                ),
+                related_tickers=",".join(RELATED_TICKERS.get(ticker, [])),
                 refreshed_at=now,
             )
         )
-
         matched.append(ticker)
 
-    # Only replace the stored calendar if the refresh actually found events.
-    # This prevents transient Yahoo failures from wiping a previously valid calendar.
     if parsed_events:
         db.execute(delete(EarningsEvent))
-
         for event in parsed_events:
             db.add(event)
-
         db.commit()
 
-    diagnostic_parts = [
-        f"Checked {checked}/{len(tickers)} blue-chip tickers.",
-        f"Found {len(parsed_events)} upcoming earnings events.",
-    ]
+    diagnostic = (
+        f"Checked {len(tickers)} earnings-enabled stocks. "
+        f"Found {len(parsed_events)} upcoming earnings events."
+    )
 
     if failures:
-        diagnostic_parts.append(
-            f"{len(failures)} ticker lookups reported Yahoo errors."
-        )
+        diagnostic += f" {len(failures)} Yahoo ticker lookups reported errors."
 
     if not parsed_events:
-        diagnostic_parts.append(
-            "No upcoming dates were parsed. Existing stored earnings were preserved."
-        )
+        diagnostic += " Existing stored earnings were preserved."
 
     return {
         "horizon": horizon,
-        # Keep the existing schema fields. For the new ticker-first strategy,
-        # this represents the number of blue-chip ticker lookups performed.
-        "received_market_events": checked,
+        "received_market_events": len(tickers),
         "stored_blue_chip_events": len(parsed_events),
         "refreshed_at": now,
-        "unique_market_symbols": checked,
+        "unique_market_symbols": len(tickers),
         "matched_blue_chip_symbols": sorted(matched),
         "returned_symbol_sample": tickers[:25],
-        "diagnostic": " ".join(diagnostic_parts),
+        "diagnostic": diagnostic,
     }
+
+
+def earnings_universe(db: Session) -> list[dict]:
+    registry = earnings_universe_registry(db)
+    rows = []
+
+    for ticker, item in registry.items():
+        rows.append(
+            {
+                "ticker": ticker,
+                "company_name": item.get("company_name") or ticker,
+                "sector": item.get("sector") or "Unknown",
+                "impact_score": item["earnings_impact_score"],
+            }
+        )
+
+    rows.sort(key=lambda row: (-row["impact_score"], row["ticker"]))
+    return rows
 
 
 def serialize_event(event: EarningsEvent) -> dict:
@@ -412,11 +371,7 @@ def serialize_event(event: EarningsEvent) -> dict:
         "sector": event.sector,
         "report_date": event.report_date,
         "fiscal_date_ending": event.fiscal_date_ending,
-        "eps_estimate": (
-            float(event.eps_estimate)
-            if event.eps_estimate is not None
-            else None
-        ),
+        "eps_estimate": float(event.eps_estimate) if event.eps_estimate is not None else None,
         "currency": event.currency,
         "impact_score": event.impact_score,
         "impact_level": event.impact_level,
