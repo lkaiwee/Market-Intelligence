@@ -377,7 +377,7 @@ export default function PortfolioPage() {
                 {data.positions.map((position) => (
                   <tr key={position.ticker}>
                     <td>
-                      <Link className="ticker-link" href={`/stocks/${position.ticker}`}>
+                      <Link className="ticker-link" href={`/stocks/?ticker=${encodeURIComponent(position.ticker)}`}>
                         {position.ticker}
                       </Link>
                       <div className="subcell">{position.company_name || ""}</div>
@@ -491,7 +491,7 @@ export default function PortfolioPage() {
               <div className={styles.levelCard} key={`levels-${position.ticker}`}>
                 <div className="line-between">
                   <div>
-                    <Link className="ticker-link" href={`/stocks/${position.ticker}`}>
+                    <Link className="ticker-link" href={`/stocks/?ticker=${encodeURIComponent(position.ticker)}`}>
                       {position.ticker}
                     </Link>
                     <div className="subcell">{position.sector || "Unknown sector"}</div>

@@ -1,5 +1,16 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE = (
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  (process.env.NEXT_PUBLIC_GITHUB_PAGES === "true" ? "" : "http://127.0.0.1:8000")
+).replace(/\/$/, "");
+
+function apiUrl(path: string): string {
+  if (!API_BASE) {
+    throw new Error(
+      "Backend not connected. This GitHub Pages site hosts the frontend. Live market data and portfolio features need a separately hosted API.",
+    );
+  }
+  return `${API_BASE}${path}`;
+}
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -19,7 +30,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(apiUrl(path), {
     cache: "no-store",
   });
 
@@ -30,7 +41,7 @@ export async function apiPost<T>(
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -48,7 +59,7 @@ export async function apiPut<T>(
   path: string,
   body: unknown,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method: "PUT",
     headers: {
       Accept: "application/json",
@@ -61,7 +72,7 @@ export async function apiPut<T>(
 }
 
 export async function apiDelete<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(apiUrl(path), {
     method: "DELETE",
     headers: {
       Accept: "application/json",

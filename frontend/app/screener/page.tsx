@@ -188,7 +188,7 @@ export default function ScreenerPage() {
                     <td>
                       <Link
                         className="ticker-link"
-                        href={`/stocks/${item.ticker}`}
+                        href={`/stocks/?ticker=${encodeURIComponent(item.ticker)}`}
                       >
                         {item.ticker}
                       </Link>
@@ -235,7 +235,7 @@ export default function ScreenerPage() {
           <div className="card-grid">
             {technical.map((item) => (
               <Link
-                href={`/stocks/${item.ticker}`}
+                href={`/stocks/?ticker=${encodeURIComponent(item.ticker)}`}
                 className="stock-card"
                 key={item.ticker}
               >

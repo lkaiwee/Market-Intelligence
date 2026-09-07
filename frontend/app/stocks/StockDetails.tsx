@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 import { apiGet } from "@/lib/api";
 import type { InvestmentAnalysis, TechnicalAnalysis } from "@/lib/types";
@@ -15,37 +15,70 @@ function fmt(value: number | null | undefined, digits = 2) {
   return value.toFixed(digits);
 }
 
-export default function StockDetailPage() {
-  const params = useParams<{ ticker: string }>();
-  const ticker = String(params.ticker || "").toUpperCase();
+export default function StockDetails() {
+  const searchParams = useSearchParams();
+  const ticker = (searchParams.get("ticker") || "").trim().toUpperCase();
+  const validTicker =
+    /^\^?[A-Z0-9][A-Z0-9.^=_-]*$/.test(ticker) &&
+    ticker !== "UNDEFINED" &&
+    ticker !== "NULL";
 
+  if (!validTicker) {
+    return (
+      <>
+        <PageHeader
+          title="Stock Analysis"
+          subtitle="Stock technical and investment analysis."
+        />
+        <ErrorBox
+          message={
+            ticker
+              ? "The ticker in this URL is invalid. Select a stock from the dashboard, screener or portfolio."
+              : "Select a stock from the dashboard, screener or portfolio to view its analysis."
+          }
+        />
+      </>
+    );
+  }
+
+  return <StockAnalysis key={ticker} ticker={ticker} />;
+}
+
+function StockAnalysis({ ticker }: { ticker: string }) {
   const [technical, setTechnical] = useState<TechnicalAnalysis | null>(null);
   const [investment, setInvestment] = useState<InvestmentAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
+    const encodedTicker = encodeURIComponent(ticker);
+
     async function load() {
       try {
         setError(null);
         const technicalData = await apiGet<TechnicalAnalysis>(
-          `/api/stocks/${ticker}/analysis`
+          `/api/stocks/${encodedTicker}/analysis`
         );
+        if (!active) return;
         setTechnical(technicalData);
 
         try {
           const investmentData = await apiGet<InvestmentAnalysis>(
-            `/api/stocks/${ticker}/investment-analysis`
+            `/api/stocks/${encodedTicker}/investment-analysis`
           );
-          setInvestment(investmentData);
+          if (active) setInvestment(investmentData);
         } catch {
-          setInvestment(null);
+          if (active) setInvestment(null);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        if (active) setError(err instanceof Error ? err.message : String(err));
       }
     }
 
-    if (ticker) load();
+    load();
+    return () => {
+      active = false;
+    };
   }, [ticker]);
 
   if (error) {

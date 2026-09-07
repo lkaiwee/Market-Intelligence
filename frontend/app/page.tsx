@@ -132,7 +132,7 @@ export default function DashboardPage() {
                       <td>
                         <Link
                           className="ticker-link"
-                          href={`/stocks/${item.ticker}`}
+                          href={`/stocks/?ticker=${encodeURIComponent(item.ticker)}`}
                         >
                           {item.ticker}
                         </Link>
@@ -288,7 +288,7 @@ export default function DashboardPage() {
           <div className="card-grid">
             {data.technical_watchlist.map((item) => (
               <Link
-                href={`/stocks/${item.ticker}`}
+                href={`/stocks/?ticker=${encodeURIComponent(item.ticker)}`}
                 className="stock-card"
                 key={item.ticker}
               >
