@@ -1,0 +1,41 @@
+name: Refresh hosted market data
+
+on:
+  schedule:
+    # Asia/Singapore: Tue-Sat 07:15 and 07:35; Sunday 18:00.
+    - cron: "15 23 * * 1-5"
+    - cron: "35 23 * * 1-5"
+    - cron: "0 10 * * 0"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Refresh job
+        type: choice
+        required: true
+        default: daily
+        options: [daily, screener, earnings, alerts]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-market-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: vars.API_BASE_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run refresh
+        run: python scripts/run_hosted_job.py
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          API_ACCESS_TOKEN: ${{ secrets.API_ACCESS_TOKEN }}
+          JOB: ${{ inputs.job }}
+          SCHEDULE: ${{ github.event.schedule }}

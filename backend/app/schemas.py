@@ -285,6 +285,7 @@ class ScheduledJobOut(BaseModel):
 class JobStatusOut(BaseModel):
     scheduler_enabled: bool
     scheduler_running: bool
+    scheduler_external: bool = False
     timezone: str
     daily_schedule: str
     weekly_schedule: str

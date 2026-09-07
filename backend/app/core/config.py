@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,6 +9,26 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+psycopg://stockuser:stockpass@localhost:5432/stock_dashboard"
     )
+    api_auth_required: bool = False
+    api_access_token: SecretStr = SecretStr("")
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    scheduler_external: bool = False
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def use_psycopg_driver(cls, value):
+        if isinstance(value, str):
+            for prefix in ("postgres://", "postgresql://"):
+                if value.startswith(prefix):
+                    return "postgresql+psycopg://" + value[len(prefix):]
+        return value
+
+    @model_validator(mode="after")
+    def require_hosted_access_token(self):
+        token = self.api_access_token.get_secret_value()
+        if self.api_auth_required and len(token) < 32:
+            raise ValueError("Hosted API requires an API_ACCESS_TOKEN of at least 32 characters")
+        return self
 
     alpha_vantage_api_key: str = "demo"
     alpha_vantage_base_url: str = "https://www.alphavantage.co/query"

@@ -92,7 +92,7 @@ export default function SystemPage() {
         <div className="metric-card">
           <span className="eyebrow">Scheduler</span>
           <strong>
-            {status.scheduler_running ? "RUNNING" : "STOPPED"}
+            {status.scheduler_external ? "GITHUB ACTIONS" : status.scheduler_running ? "RUNNING" : "STOPPED"}
           </strong>
           <span className="muted">{status.timezone}</span>
         </div>

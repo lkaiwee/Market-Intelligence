@@ -81,6 +81,7 @@ def get_scheduler_status() -> dict:
     return {
         "scheduler_enabled": settings.scheduler_enabled,
         "scheduler_running": scheduler.running,
+        "scheduler_external": settings.scheduler_external,
         "timezone": settings.app_timezone,
         "daily_schedule": (
             f"{settings.daily_job_day_of_week} "

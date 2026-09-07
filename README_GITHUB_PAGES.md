@@ -14,7 +14,7 @@ The Pages build uses Next.js static export with the repository base path and tra
 ## Connect the backend
 
 1. Host the FastAPI app and a persistent PostgreSQL database on a service that supports Python. Keep the scheduler process running for automatic refreshes.
-2. Protect access to the API before adding personal portfolio information. The current local backend does not implement user authentication; publishing its write endpoints without access control would allow other people to read or change portfolio positions.
+2. Enable `API_AUTH_REQUIRED=true` and configure a private `API_ACCESS_TOKEN` of at least 32 characters. The dashboard prompts for this owner token; never put it in the public frontend build. See `README_HOSTED_API.md` for the free Render and Neon deployment.
 3. Configure FastAPI CORS to allow the frontend origin `https://lkaiwee.github.io` (without the repository path).
 4. In repository Settings → Secrets and variables → Actions → Variables, add `NEXT_PUBLIC_API_BASE_URL` with the backend's HTTPS origin, for example `https://your-api.example.com`. Do not include `/api`, credentials or secret tokens. This URL is embedded in the public frontend JavaScript.
 5. Run the Pages deployment workflow again. The backend connection notice disappears and API requests use the configured URL.

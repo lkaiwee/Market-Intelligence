@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { BackendNotice } from "@/components/BackendNotice";
+import { ApiAccessGate } from "@/components/ApiAccessGate";
 
 export const metadata: Metadata = {
   title: "Market Intelligence",
@@ -20,7 +21,7 @@ export default function RootLayout({
           <Sidebar />
           <main className="main-content">
             <BackendNotice />
-            {children}
+            <ApiAccessGate>{children}</ApiAccessGate>
           </main>
         </div>
       </body>

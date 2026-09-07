@@ -102,6 +102,7 @@ export type EarningsEvent = {
 export type JobStatus = {
   scheduler_enabled: boolean;
   scheduler_running: boolean;
+  scheduler_external?: boolean;
   timezone: string;
   daily_schedule: string;
   weekly_schedule: string;
