@@ -376,7 +376,7 @@ def _parse_bea_rows(html: str, year: int) -> list[dict[str, Any]]:
     )
 
     for row in parser.rows:
-        published_year = re.search(r"\bYear\s+(\d{4})\b", row)
+        published_year = re.search(r"^Year\s+(\d{4})\b", row)
         if published_year:
             year = int(published_year.group(1))
         match = pattern.search(row)

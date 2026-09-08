@@ -28,7 +28,8 @@ class CalendarParsingTests(unittest.TestCase):
         self.assertEqual(events[1]["release_at_sgt"], "2026-11-10T21:30:00+08:00")
 
     def test_bea_uses_published_release_year_not_reference_year(self):
-        html = """<table><tr><th>Year 2027</th></tr><tr>
+        html = """<table><tr><th>Year 2027</th></tr>
+        <tr><td>January 29 8:30 AM</td><td>GDP, 4th Quarter and Year 2026</td></tr><tr>
         <td>January 29 8:30 AM</td><td>Personal Income and Outlays, December 2026</td>
         </tr></table>"""
         events = macro._parse_bea_rows(html, 2026)
