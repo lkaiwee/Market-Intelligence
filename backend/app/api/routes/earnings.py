@@ -14,6 +14,7 @@ from app.services.earnings import (
     upcoming_earnings,
     weekly_earnings,
 )
+from app.services.macro_calendar import get_macro_calendar
 
 router = APIRouter(prefix="/earnings", tags=["Earnings"])
 
@@ -44,6 +45,23 @@ async def refresh_earnings(
         raise HTTPException(
             status_code=502,
             detail=f"Yahoo Finance earnings refresh failed: {exc}",
+        ) from exc
+
+
+@router.get("/macro")
+async def get_us_macro_calendar(
+    days: int = Query(default=120, ge=7, le=365),
+    refresh: bool = Query(default=False),
+):
+    try:
+        return await get_macro_calendar(
+            days=days,
+            force_refresh=refresh,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"U.S. macro calendar refresh failed: {exc}",
         ) from exc
 
 

@@ -9,7 +9,7 @@ const items = [
   { href: "/alerts", label: "Alerts", icon: "◉" },
   { href: "/rotation", label: "Money Rotation", icon: "↗" },
   { href: "/screener", label: "Screener", icon: "⌕" },
-  { href: "/earnings", label: "Earnings", icon: "◷" },
+  { href: "/earnings", label: "Earnings & Macro", icon: "◷" },
   { href: "/universe", label: "Stock Universe", icon: "+" },
   { href: "/system", label: "System", icon: "⚙" },
 ];

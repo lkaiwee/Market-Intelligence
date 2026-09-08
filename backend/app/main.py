@@ -41,7 +41,7 @@ settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.7.4",
+    version="0.7.5",
     lifespan=lifespan,
 )
 
@@ -76,12 +76,13 @@ app.include_router(dashboard_router, prefix="/api")
 def root():
     return {
         "message": "Stock Market Intelligence API is running.",
-        "version": "0.7.4",
+        "version": "0.7.5",
         "daily_market_provider": "Yahoo Finance",
         "screener_provider": "Yahoo Finance",
         "earnings_provider": "Yahoo Finance ticker calendars + earnings-dates fallback",
         "custom_universe": True,
         "portfolio_tracker": True,
+        "macro_risk_calendar": True,
         "frontend": "http://localhost:3000",
         "docs": "/docs",
     }
