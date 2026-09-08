@@ -93,7 +93,11 @@ export default function DashboardPage() {
         <div className="metric-card">
           <span className="eyebrow">Scheduler</span>
           <strong>
-            {data.scheduler.scheduler_running ? "RUNNING" : "STOPPED"}
+            {data.scheduler.scheduler_external
+              ? "GITHUB ACTIONS"
+              : data.scheduler.scheduler_running
+                ? "RUNNING"
+                : "STOPPED"}
           </strong>
           <span className="muted">
             Daily {data.scheduler.daily_schedule} · {data.scheduler.timezone}
@@ -314,3 +318,4 @@ export default function DashboardPage() {
     </>
   );
 }
+
