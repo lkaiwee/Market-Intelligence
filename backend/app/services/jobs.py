@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from app.core.config import get_settings
+from app.core.market_sessions import latest_completed_session
 from app.database import SessionLocal
 from app.models import JobRun, MarketRefreshState
 from app.providers.yahoo_finance import YahooFinanceError, YahooFinanceProvider
@@ -49,10 +50,19 @@ def _local_today():
 def _already_attempted_today(db, ticker: str) -> bool:
     state = db.get(MarketRefreshState, ticker)
 
-    if state is None:
+    if state is None or state.status != "SUCCESS" or state.updated_at is None:
         return False
 
-    return state.last_attempt_date == _local_today()
+    session = latest_completed_session()
+    updated = state.updated_at
+    if updated.tzinfo is None:
+        updated = updated.replace(tzinfo=timezone.utc)
+    return (
+        state.last_attempt_date == _local_today()
+        and state.newest_market_date is not None
+        and state.newest_market_date >= session.trade_date
+        and updated >= session.ready_at
+    )
 
 
 def _record_attempt(
@@ -133,6 +143,7 @@ async def run_daily_market_job(force: bool = False) -> dict:
                 )
 
             except YahooFinanceError as exc:
+                db.rollback()
                 failed += 1
                 safe = str(exc)
                 failures.append(f"{ticker}: {safe}")
@@ -145,6 +156,7 @@ async def run_daily_market_job(force: bool = False) -> dict:
                 )
 
             except Exception as exc:
+                db.rollback()
                 failed += 1
                 safe = str(exc)
                 failures.append(f"{ticker}: {safe}")
@@ -168,7 +180,7 @@ async def run_daily_market_job(force: bool = False) -> dict:
 
         detail = (
             f"Yahoo Finance: refreshed {refreshed} symbols; "
-            f"skipped {skipped} already attempted today; "
+            f"skipped {skipped} already current through {latest_completed_session().trade_date}; "
             f"{failed} failed; generated/updated {len(alerts)} alerts."
         )
 
@@ -191,6 +203,7 @@ async def run_daily_market_job(force: bool = False) -> dict:
         }
 
     except Exception as exc:
+        db.rollback()
         detail = f"Daily Yahoo Finance market job failed: {exc}"
         _finish_job(db, run, "FAILED", detail)
 
@@ -219,10 +232,14 @@ async def run_daily_screener_job(force_fundamentals: bool = False) -> dict:
         detail = (
             f"Blue-chip screener: {result['prices_succeeded']}/{result['universe_size']} "
             f"price series refreshed; "
+            f"expected close {result['expected_market_date']}; "
             f"{result['fundamentals_refreshed']} fundamentals refreshed; "
             f"{result['fundamentals_skipped_fresh']} fresh fundamentals reused; "
             f"{result['fundamentals_failed']} fundamentals failed."
         )
+
+        if result["price_failures"]:
+            detail += " Price failures: " + " | ".join(result["price_failures"][:5])
 
         if result["fundamental_failures"]:
             detail += " Failures: " + " | ".join(
@@ -248,6 +265,7 @@ async def run_daily_screener_job(force_fundamentals: bool = False) -> dict:
         }
 
     except Exception as exc:
+        db.rollback()
         detail = f"Daily blue-chip screener refresh failed: {exc}"
         _finish_job(db, run, "FAILED", detail)
 

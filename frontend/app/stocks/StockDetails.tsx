@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import type { InvestmentAnalysis, TechnicalAnalysis } from "@/lib/types";
 import { ErrorBox } from "@/components/ErrorBox";
 import { Loading } from "@/components/Loading";
@@ -48,54 +48,97 @@ function StockAnalysis({ ticker }: { ticker: string }) {
   const [technical, setTechnical] = useState<TechnicalAnalysis | null>(null);
   const [investment, setInvestment] = useState<InvestmentAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const refreshClose = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     let active = true;
+    let refreshInProgress = false;
+    let pendingRead: Promise<boolean> | null = null;
     const encodedTicker = encodeURIComponent(ticker);
 
-    async function load() {
-      try {
-        setError(null);
-        const technicalData = await apiGet<TechnicalAnalysis>(
-          `/api/stocks/${encodedTicker}/analysis`
-        );
-        if (!active) return;
-        setTechnical(technicalData);
+    function load(): Promise<boolean> {
+      if (!active) return Promise.resolve(false);
+      if (pendingRead) return pendingRead;
 
+      pendingRead = (async () => {
         try {
-          const investmentData = await apiGet<InvestmentAnalysis>(
-            `/api/stocks/${encodedTicker}/investment-analysis`
+          const technicalData = await apiGet<TechnicalAnalysis>(
+            `/api/stocks/${encodedTicker}/analysis`
           );
-          if (active) setInvestment(investmentData);
-        } catch {
-          if (active) setInvestment(null);
+          if (!active) return false;
+
+          let investmentData: InvestmentAnalysis | null = null;
+          try {
+            investmentData = await apiGet<InvestmentAnalysis>(
+              `/api/stocks/${encodedTicker}/investment-analysis`
+            );
+          } catch {
+            // Technical data remains useful if fundamentals are unavailable.
+          }
+
+          if (!active) return false;
+          setTechnical(technicalData);
+          setInvestment(investmentData);
+          setError(null);
+          return true;
+        } catch (err) {
+          if (active) {
+            setError(err instanceof Error ? err.message : String(err));
+            setMessage(null);
+          }
+          return false;
+        } finally {
+          pendingRead = null;
         }
-      } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : String(err));
+      })();
+      return pendingRead;
+    }
+
+    function loadWhenVisible() {
+      if (document.visibilityState === "visible" && !refreshInProgress) {
+        void load();
       }
     }
 
-    load();
+    refreshClose.current = async () => {
+      if (!active || refreshInProgress) return;
+      refreshInProgress = true;
+      setRefreshing(true);
+      setMessage(null);
+      setError(null);
+      try {
+        // Finish any existing read before changing the stored close.
+        if (pendingRead) await pendingRead;
+        if (!active) return;
+        await apiPost(`/api/stocks/${encodedTicker}/refresh`);
+        const loaded = active ? await load() : false;
+        if (active && loaded) {
+          setMessage("Latest completed close refreshed.");
+        }
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        refreshInProgress = false;
+        if (active) setRefreshing(false);
+      }
+    };
+
+    void load();
+    const interval = window.setInterval(loadWhenVisible, 60_000);
+    window.addEventListener("focus", loadWhenVisible);
+    document.addEventListener("visibilitychange", loadWhenVisible);
     return () => {
       active = false;
+      refreshClose.current = null;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", loadWhenVisible);
+      document.removeEventListener("visibilitychange", loadWhenVisible);
     };
   }, [ticker]);
 
-  if (error) {
-    return (
-      <>
-        <PageHeader
-          title={ticker}
-          subtitle="Stock technical and investment analysis."
-        />
-        <ErrorBox message={error} />
-      </>
-    );
-  }
-
-  if (!technical) return <Loading />;
-
-  return (
+  const header = (
     <>
       <PageHeader
         title={ticker}
@@ -105,10 +148,30 @@ function StockAnalysis({ ticker }: { ticker: string }) {
             : "Technical analysis"
         }
       />
+      <div className="panel-heading">
+        <p>Completed U.S. session prices. Checks for updates every minute while visible.</p>
+        <button
+          type="button"
+          className="button"
+          disabled={refreshing}
+          onClick={() => { void refreshClose.current?.(); }}
+        >
+          {refreshing ? "Refreshing close…" : "Refresh close"}
+        </button>
+      </div>
+      {error && <ErrorBox message={error} />}
+      {message && <p role="status">{message}</p>}
+    </>
+  );
 
+  if (!technical) return <>{header}{!error && <Loading />}</>;
+
+  return (
+    <>
+      {header}
       <section className="stock-hero">
         <div>
-          <span className="eyebrow">Latest Price</span>
+          <span className="eyebrow">Latest completed U.S. close</span>
           <div className="hero-price">${fmt(technical.price)}</div>
           <div className="ticker-chip-row">
             <span className="ticker-chip">{technical.trend}</span>

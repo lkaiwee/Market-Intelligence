@@ -1,18 +1,39 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pandas as pd
+import numpy as np
 import yfinance as yf
 
 from app.core.config import get_settings
+from app.core.market_sessions import CompletedSession, latest_completed_session
 from app.providers.base import MarketDataProvider, PriceBar
 
 
 class YahooFinanceError(RuntimeError):
     pass
+
+
+def completed_price_frame(
+    data: pd.DataFrame, ticker: str, session: CompletedSession
+) -> pd.DataFrame:
+    required = {"Open", "High", "Low", "Close", "Volume"}
+    if data is None or data.empty or not required.issubset(data.columns):
+        raise YahooFinanceError(f"Yahoo Finance returned no usable daily history for {ticker}.")
+    frame = data.loc[[pd.Timestamp(ts).date() <= session.trade_date for ts in data.index]].copy()
+    # An unfinished or missing OHLC row must never count as a completed close.
+    ohlc = frame[["Open", "High", "Low", "Close"]].apply(pd.to_numeric, errors="coerce")
+    frame = frame.loc[np.isfinite(ohlc).all(axis=1)].sort_index()
+    newest = pd.Timestamp(frame.index[-1]).date() if not frame.empty else None
+    if newest != session.trade_date:
+        raise YahooFinanceError(
+            f"Yahoo Finance prices for {ticker} are stale: newest {newest}; "
+            f"expected completed U.S. session {session.trade_date}. Retry the refresh."
+        )
+    return frame
 
 
 class YahooFinanceProvider(MarketDataProvider):
@@ -23,6 +44,8 @@ class YahooFinanceProvider(MarketDataProvider):
     def _download_history(self, ticker: str) -> pd.DataFrame:
         data = yf.Ticker(ticker.upper()).history(
             period=self.history_period,
+            # Vary the time bounds so a cached range response cannot freeze today's close.
+            end=datetime.now(timezone.utc),
             interval="1d",
             auto_adjust=False,
             actions=False,
@@ -33,7 +56,7 @@ class YahooFinanceProvider(MarketDataProvider):
                 f"Yahoo Finance returned no daily price history for {ticker.upper()}."
             )
 
-        return data
+        return completed_price_frame(data, ticker, latest_completed_session())
 
     async def get_daily_prices(self, ticker: str) -> list[PriceBar]:
         ticker = ticker.upper().strip()

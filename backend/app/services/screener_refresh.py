@@ -9,7 +9,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.market_sessions import latest_completed_session
 from app.models import DailyPrice, FundamentalSnapshot, Stock
+from app.providers.yahoo_finance import (
+    YahooFinanceError, YahooFinanceProvider, completed_price_frame,
+)
 from app.providers.yahoo_fundamentals import (
     YahooFundamentalsError,
     YahooFundamentalsProvider,
@@ -19,7 +23,9 @@ from app.services.universe_registry import screening_universe
 from app.services.yahoo_fundamentals import refresh_yahoo_fundamentals
 
 
-def _extract_ticker_frame(data: pd.DataFrame, symbol: str) -> pd.DataFrame:
+def _extract_ticker_frame(data: pd.DataFrame | None, symbol: str) -> pd.DataFrame:
+    if data is None or data.empty:
+        return pd.DataFrame()
     if not isinstance(data.columns, pd.MultiIndex):
         return data.copy()
 
@@ -93,6 +99,7 @@ def _download_prices_sync(symbols: list[str], period: str) -> pd.DataFrame:
     return yf.download(
         tickers=symbols,
         period=period,
+        end=datetime.now(timezone.utc),
         interval="1d",
         group_by="ticker",
         auto_adjust=False,
@@ -157,12 +164,27 @@ async def refresh_blue_chip_screener(
     prices_failed = []
     total_price_rows = 0
     newest_dates = {}
+    session = latest_completed_session()
+    price_provider = YahooFinanceProvider()
 
     for ticker in tickers:
         symbol = yahoo_symbol(ticker)
         frame = _extract_ticker_frame(price_data, symbol)
 
-        rows, newest = _upsert_prices(db, ticker, frame)
+        try:
+            try:
+                frame = completed_price_frame(frame, ticker, session)
+            except YahooFinanceError:
+                # Retry only the missing/stale series instead of accepting a partial batch.
+                frame = await asyncio.to_thread(price_provider._download_history, symbol)
+                frame = completed_price_frame(frame, ticker, session)
+
+            # A bad ticker must not roll back valid prices for the rest of the universe.
+            with db.begin_nested():
+                rows, newest = _upsert_prices(db, ticker, frame)
+        except Exception as exc:
+            prices_failed.append(f"{ticker}: {exc}")
+            continue
 
         if rows:
             prices_succeeded += 1
@@ -201,9 +223,11 @@ async def refresh_blue_chip_screener(
             await asyncio.sleep(0.15)
 
         except YahooFundamentalsError as exc:
+            db.rollback()
             fundamental_failed.append(f"{ticker}: {exc}")
 
         except Exception as exc:
+            db.rollback()
             fundamental_failed.append(f"{ticker}: {exc}")
 
     return {
@@ -216,8 +240,9 @@ async def refresh_blue_chip_screener(
         "fundamentals_skipped_fresh": fundamental_skipped,
         "fundamentals_failed": len(fundamental_failed),
         "fundamental_failures": fundamental_failed[:20],
+        "expected_market_date": session.trade_date.isoformat(),
         "newest_market_date": (
-            max(newest_dates.values()).isoformat()
+            min(newest_dates.values()).isoformat()
             if newest_dates
             else None
         ),

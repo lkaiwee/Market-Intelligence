@@ -142,7 +142,7 @@ export default function SystemPage() {
           <button
             className="action-card"
             onClick={() =>
-              run("/api/jobs/daily/run?force=false", "daily")
+              run("/api/jobs/daily/run?force=true", "daily")
             }
             disabled={busy !== null}
           >
