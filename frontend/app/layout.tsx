@@ -6,7 +6,7 @@ import { ApiAccessGate } from "@/components/ApiAccessGate";
 
 export const metadata: Metadata = {
   title: "Market Intelligence",
-  description: "Local stock market intelligence dashboard",
+  description: "Market research, portfolio risk and strategy analytics",
 };
 
 export default function RootLayout({

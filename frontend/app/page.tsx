@@ -63,11 +63,11 @@ export default function DashboardPage() {
 
       <section className="metric-grid">
         <div className="metric-card">
-          <span className="eyebrow">Market Regime</span>
+          <span className="eyebrow">Sector Rotation Regime</span>
           <strong className={`regime ${data.market_regime || "NEUTRAL"}`}>
             {data.market_regime || "NO DATA"}
           </strong>
-          <span className="muted">Cross-sector risk positioning</span>
+          <Link className="muted" href="/regime">Open full market regime analysis →</Link>
         </div>
 
         <div className="metric-card score-card">

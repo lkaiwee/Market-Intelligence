@@ -109,9 +109,13 @@ button {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
 }
 
 .nav-item {
+  flex-shrink: 0;
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -1003,7 +1007,8 @@ tbody tr:hover td {
 
   .sidebar nav {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 205px;
   }
 
   .sidebar-footer {
@@ -1034,3 +1039,42 @@ tbody tr:hover td {
     font-size: 22px;
   }
 }
+
+.research-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  min-width: 0;
+  padding: 0;
+  margin: 18px 0;
+  border: 0;
+}
+.research-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.research-form input, .research-form select, .research-form textarea,
+.research-actions select {
+  width: 100%;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+}
+.research-form input[type="checkbox"] { width: auto; }
+.research-form textarea { min-height: 85px; resize: vertical; }
+.research-form input:focus, .research-form select:focus, .research-form textarea:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.research-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin: 14px 0; }
+.research-actions select { width: auto; margin-left: 8px; }
+button:disabled { cursor: wait; opacity: .6; }
+details summary { cursor: pointer; padding: 6px 0; }
+details p { max-width: 440px; white-space: normal; line-height: 1.5; }

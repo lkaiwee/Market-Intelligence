@@ -6,10 +6,19 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/", label: "Dashboard", icon: "◫" },
   { href: "/portfolio", label: "Portfolio", icon: "◆" },
+  { href: "/risk", label: "Risk & Position Sizing", icon: "◇" },
+  { href: "/stress", label: "Stress & Correlation", icon: "≋" },
+  { href: "/journal", label: "Trade Journal", icon: "▤" },
   { href: "/alerts", label: "Alerts", icon: "◉" },
   { href: "/rotation", label: "Money Rotation", icon: "↗" },
   { href: "/screener", label: "Screener", icon: "⌕" },
+  { href: "/setups", label: "Technical Setups", icon: "⌁" },
+  { href: "/valuation", label: "Fair Value", icon: "∑" },
+  { href: "/quality", label: "Earnings Quality", icon: "✓" },
   { href: "/earnings", label: "Earnings & Macro", icon: "◷" },
+  { href: "/macro-surprise", label: "Macro Surprises", icon: "±" },
+  { href: "/regime", label: "Market Regime", icon: "◒" },
+  { href: "/backtest", label: "Backtesting", icon: "↶" },
   { href: "/universe", label: "Stock Universe", icon: "+" },
   { href: "/system", label: "System", icon: "⚙" },
 ];
@@ -23,7 +32,7 @@ export function Sidebar() {
         <div className="brand-mark">MI</div>
         <div>
           <strong>Market Intelligence</strong>
-          <span>Local Terminal</span>
+          <span>Research Terminal · 8.4</span>
         </div>
       </div>
 

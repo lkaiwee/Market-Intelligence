@@ -13,7 +13,7 @@ export function PageHeader({
       </div>
       <div className="live-pill">
         <span className="status-dot" />
-        LOCAL
+        RESEARCH
       </div>
     </div>
   );

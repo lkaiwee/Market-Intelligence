@@ -15,6 +15,15 @@ from app.api.routes.rotation import router as rotation_router
 from app.api.routes.screener import router as screener_router
 from app.api.routes.stocks import router as stocks_router
 from app.api.routes.universe import router as universe_router
+from app.api.routes.macro_surprise import router as macro_surprise_router
+from app.api.routes.market_regime import router as market_regime_router
+from app.api.routes.risk import router as risk_router
+from app.api.routes.stress import router as stress_router
+from app.api.routes.journal import router as journal_router
+from app.api.routes.valuation import router as valuation_router
+from app.api.routes.quality import router as quality_router
+from app.api.routes.setups import router as setups_router
+from app.api.routes.backtest import router as backtest_router
 from app.core.config import get_settings
 from app.database import Base, engine
 from app.scheduler import start_scheduler, stop_scheduler
@@ -23,6 +32,9 @@ from app.services.security_cleanup import sanitize_persisted_secrets
 from app import models  # noqa: F401
 from app import models_universe  # noqa: F401
 from app import models_portfolio  # noqa: F401
+from app import models_macro_surprise  # noqa: F401
+from app import models_journal  # noqa: F401
+from app import models_quality  # noqa: F401
 
 
 @asynccontextmanager
@@ -41,7 +53,7 @@ settings = get_settings()
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.7.5",
+    version="0.8.4",
     lifespan=lifespan,
 )
 
@@ -70,19 +82,30 @@ app.include_router(earnings_router, prefix="/api")
 app.include_router(universe_router, prefix="/api")
 app.include_router(automation_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(macro_surprise_router, prefix="/api")
+app.include_router(market_regime_router, prefix="/api")
+app.include_router(risk_router, prefix="/api")
+app.include_router(stress_router, prefix="/api")
+app.include_router(journal_router, prefix="/api")
+app.include_router(valuation_router, prefix="/api")
+app.include_router(quality_router, prefix="/api")
+app.include_router(setups_router, prefix="/api")
+app.include_router(backtest_router, prefix="/api")
 
 
 @app.get("/")
 def root():
     return {
         "message": "Stock Market Intelligence API is running.",
-        "version": "0.7.5",
+        "version": "0.8.4",
         "daily_market_provider": "Yahoo Finance",
         "screener_provider": "Yahoo Finance",
         "earnings_provider": "Yahoo Finance ticker calendars + earnings-dates fallback",
         "custom_universe": True,
         "portfolio_tracker": True,
         "macro_risk_calendar": True,
+        "research_suite": ["macro_surprise", "portfolio_risk", "market_regime", "technical_setups",
+                           "valuation", "earnings_quality", "portfolio_stress", "trade_journal", "backtesting"],
         "frontend": "http://localhost:3000",
         "docs": "/docs",
     }
